@@ -29,7 +29,7 @@ def load_and_prepare_recommender():
     @st.cache_data
     def load_remote_csv():
         url = "https://www.dropbox.com/scl/fi/7du5rxga4yd1xhqkmlxs9/t20_bbb.csv?rlkey=510p4dcm8rqxfdrfdmidisdpz&e=2&dl=1"
-        df = pd.read_csv(url)
+        df = pd.read_csv(url, low_memory=False)
         return df
 
     df = load_remote_csv()
