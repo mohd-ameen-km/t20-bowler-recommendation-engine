@@ -26,12 +26,13 @@ def load_and_prepare_recommender():
     Load dataset once, preprocess, and initialize recommender.
     Cached between reruns for instant UI response.
     """
-    data_path = Path(__file__).resolve().parents[1] / "data" / "t20_bbb.csv"
-    if not data_path.exists():
-        st.error(f"❌ Dataset not found at {data_path}")
-        st.stop()
+    @st.cache_data
+    def load_remote_csv():
+        url = "https://www.dropbox.com/scl/fi/7du5rxga4yd1xhqkmlxs9/t20_bbb.csv?rlkey=510p4dcm8rqxfdrfdmidisdpz&e=2&dl=1"
+        df = pd.read_csv(url)
+        return df
 
-    df = pd.read_csv(data_path)
+    df = load_remote_csv()
     dp = T20DataProcessor(df)
     recommender = EnhancedBowlerRecommender(dp)
     return df, dp, recommender
