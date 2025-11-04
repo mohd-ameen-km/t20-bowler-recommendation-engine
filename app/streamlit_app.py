@@ -1,5 +1,3 @@
-# app/streamlit_app.py
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -16,17 +14,16 @@ from src.recommendation_engine import EnhancedBowlerRecommender
 # -----------------------------
 # ✅ Streamlit Page Configuration
 # -----------------------------
-st.set_page_config(page_title="T20 Bowler Recommender", layout="wide")
-st.title("🏏T20 Bowler Recommendation Engine")
-
+st.set_page_config(page_title="🏏 T20 Bowler Recommender", layout="wide")
+st.title("🏏 AI-Powered T20 Bowler Recommendation Engine")
 
 # -----------------------------
-# ⚙️ Load Data & Initialize Recommender (CACHED)
+# ⚙️ Load Data & Initialize Recommender (Cached)
 # -----------------------------
 @st.cache_resource
 def load_and_prepare_recommender():
     """
-    Load dataset once, initialize data processor and recommender once.
+    Load dataset once, preprocess, and initialize recommender.
     Cached between reruns for instant UI response.
     """
     data_path = Path(__file__).resolve().parents[1] / "data" / "t20_bbb.csv"
@@ -39,21 +36,39 @@ def load_and_prepare_recommender():
     recommender = EnhancedBowlerRecommender(dp)
     return df, dp, recommender
 
-
 df, dp, recommender = load_and_prepare_recommender()
-
 
 # -----------------------------
 # 🧠 Sidebar Controls
 # -----------------------------
 st.sidebar.header("⚙️ Controls")
 
-batters = sorted(df['bat'].unique())
+# ML training button
+if "trained" not in st.session_state:
+    st.session_state.trained = False
+
+if st.sidebar.button("🧠 Train ML Models"):
+    with st.spinner("Training ML models..."):
+        success = recommender.prepare_ml_data()
+        if success:
+            st.session_state.trained = True
+            st.sidebar.success("✅ Models trained successfully!")
+        else:
+            st.sidebar.error("❌ Not enough data to train models.")
+
+# Try loading saved models if not trained yet
+if not st.session_state.trained:
+    recommender.ml.load_models()
+    if recommender.ml.is_trained:
+        recommender.is_trained = True
+        st.session_state.trained = True
+
+# Batter and phase selection
+batters = sorted(df['bat'].dropna().unique())
 phases = ['Powerplay', 'Middle1', 'Middle2', 'Death']
 
 batter = st.sidebar.selectbox("🎯 Select Batter", batters)
 phase = st.sidebar.selectbox("⏰ Select Match Phase", phases)
-
 
 # -----------------------------
 # 🚀 Generate Recommendation
@@ -63,15 +78,20 @@ if batter and phase:
         result = recommender.recommend(batter, phase)
 
     if not result or result.get("recommended_type") in [None, "No Reliable Data"]:
-        st.warning("Insufficient or unreliable data for this batter-phase combination.")
+        st.warning("⚠️ Insufficient or unreliable data for this batter-phase combination.")
         st.stop()
 
-    # Display core results
+    # -----------------------------
+    # 🧩 Display Core Recommendation
+    # -----------------------------
     st.subheader(f"Recommended Bowling Type for **{batter}** in **{phase}**")
     st.metric("🧩 Recommended Bowling Type", result["recommended_type"])
     st.metric("📊 Weakness Score", f"{result['weakness_score']:.1f}")
+    st.caption(f"Method Used: **{result['method']}**")
 
-    # Visualization
+    # -----------------------------
+    # 📉 Weakness Visualization
+    # -----------------------------
     st.write("### 🔍 Weakness Analysis by Bowling Type")
 
     if result["all_predictions"]:
@@ -93,6 +113,8 @@ if batter and phase:
     else:
         st.info("No reliable bowling-type data available for visualization.")
 
-    # Similar batters (if ML used)
+    # -----------------------------
+    # 👥 Similar Batters (ML)
+    # -----------------------------
     if result.get("similar_batters"):
         st.write(f"👥 **Similar Batters:** {', '.join(result['similar_batters'])}")

@@ -5,7 +5,7 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.multioutput import MultiOutputRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
-from src.utils.constants import BOWLING_TYPES
+from pathlib import Path
 
 class MLBowlerRecommender:
     def __init__(self):
@@ -13,10 +13,11 @@ class MLBowlerRecommender:
         self.model = MultiOutputRegressor(GradientBoostingRegressor(random_state=42))
         self.is_trained = False
         self.feature_columns = []
-        self.bowling_types = BOWLING_TYPES
+        self.bowling_types = []
 
     def train_models(self, X, weakness_scores):
-        """Train ML models and persist"""
+        """Train ML models."""
+        self.bowling_types = list(next(iter(weakness_scores.values())).keys())
         y = np.array([[weakness_scores[batter].get(bt, 0) for bt in self.bowling_types] for batter in X.index])
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
@@ -27,17 +28,21 @@ class MLBowlerRecommender:
         print(f"✅ Model trained. MSE: {mse:.3f}")
         self.is_trained = True
 
-        joblib.dump(self.model, "models/rf_model.pkl")
-        joblib.dump(self.kmeans, "models/kmeans.pkl")
+        model_dir = Path(__file__).resolve().parents[1] / "models"
+        model_dir.mkdir(exist_ok=True)
+        joblib.dump(self.model, "../models/gb_model.pkl")
+        joblib.dump(self.kmeans, "../models/kmeans.pkl")
 
     def load_models(self):
+        """Load pre-trained models if available."""
+        model_dir = Path(__file__).resolve().parents[1] / "models"
         try:
-            self.model = joblib.load("models/rf_model.pkl")
-            self.kmeans = joblib.load("models/kmeans.pkl")
+            self.model = joblib.load("../models/gb_model.pkl")
+            self.kmeans = joblib.load("../models/kmeans.pkl")
             self.is_trained = True
             print("✅ Models loaded successfully.")
-        except:
-            print("⚠️ Models not found. Retraining required.")
+        except Exception:
+            print("⚠️ Models not found. Please train first.")
 
     def predict_weakness(self, features):
         X_vec = np.array([[features.get(col, 0) for col in self.feature_columns]])
@@ -47,7 +52,9 @@ class MLBowlerRecommender:
     def find_similar_batters(self, features, batters_data, top_n=5):
         X_vec = np.array([[features.get(col, 0) for col in self.feature_columns]])
         cluster = self.kmeans.predict(X_vec)[0]
-        sims = [b for b, f in batters_data.items() if self.kmeans.predict(
-            np.array([[f.get(col, 0) for col in self.feature_columns]])
-        )[0] == cluster and b != features['batter_name']]
+        sims = [
+            b for b, f in batters_data.items()
+            if self.kmeans.predict(np.array([[f.get(col, 0) for col in self.feature_columns]]))[0] == cluster
+            and b != features['batter_name']
+        ]
         return sims[:top_n]

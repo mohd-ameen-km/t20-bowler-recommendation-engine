@@ -8,16 +8,15 @@ class FeatureEngineer:
         self.feature_columns = []
 
     def prepare_features(self, batters_data):
-        """Prepare feature matrix for ML"""
+        """Prepare normalized feature matrix for ML."""
         df = pd.DataFrame(list(batters_data.values()))
-        if len(df) == 0:
+        if df.empty:
             return None, None
 
         df = df[df['total_balls'] >= 20]
-        if len(df) == 0:
+        if df.empty:
             return None, None
 
-        # Select numeric columns
         X = df.select_dtypes(include=[np.number]).fillna(0)
         self.feature_columns = X.columns.tolist()
 
@@ -25,12 +24,14 @@ class FeatureEngineer:
         return pd.DataFrame(X_scaled, index=df['batter_name']), df['batter_name']
 
     def create_weakness_labels(self, batters_data, bowling_types):
-        """Compute weakness scores per bowling type"""
+        """Generate target labels: weakness score per bowling type."""
         weakness = {}
         for batter, f in batters_data.items():
             scores = {}
             for bt in bowling_types:
-                sr, dr, balls = f.get(f'{bt}_sr', 0), f.get(f'{bt}_dismissal_rate', 0), f.get(f'{bt}_balls_faced', 0)
+                sr = f.get(f'{bt}_sr', 0)
+                dr = f.get(f'{bt}_dismissal_rate', 0)
+                balls = f.get(f'{bt}_balls_faced', 0)
                 conf = min(balls / 15, 1.0)
                 sr_norm = 1 - (sr / 200)
                 dr_norm = dr / 100
