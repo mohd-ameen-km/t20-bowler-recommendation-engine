@@ -23,19 +23,23 @@ st.title("🏏 AI-Powered T20 Bowler Recommendation Engine")
 @st.cache_resource
 def load_and_prepare_recommender():
     """
-    Load dataset once, preprocess, and initialize recommender.
-    Cached between reruns for instant UI response.
+    Load parquet dataset once (fast), preprocess, initialize recommender.
+    Cached between reruns.
     """
     @st.cache_data
-    def load_remote_csv():
-        url = "https://www.dropbox.com/scl/fi/7du5rxga4yd1xhqkmlxs9/t20_bbb.csv?rlkey=510p4dcm8rqxfdrfdmidisdpz&e=2&dl=1"
-        df = pd.read_csv(url, low_memory=False)
+    def load_remote_parquet():
+        # Replace with your parquet download URL (ensure ?dl=1)
+        url = "https://www.dropbox.com/scl/fi/3opwrvzwtgbaft9zkcz7w/t20_bbb.parquet?rlkey=8bhqv5163epza2srlq8wdru3a&st=oii7v0ug&dl=1"
+        df = pd.read_parquet(url)
         return df
 
-    df = load_remote_csv()
-    dp = T20DataProcessor(df)
-    recommender = EnhancedBowlerRecommender(dp)
+    with st.spinner("📦 Loading and preparing dataset..."):
+        df = load_remote_parquet()
+        dp = T20DataProcessor(df)
+        recommender = EnhancedBowlerRecommender(dp)
+
     return df, dp, recommender
+
 
 df, dp, recommender = load_and_prepare_recommender()
 
